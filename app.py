@@ -14,12 +14,12 @@ if uploaded_file:
     with st.expander("🔍 Ver datos cargados"):
         st.dataframe(df_raw)
 
-    try:
-        # Validar encabezado de la primera columna
-        if df_raw.columns[0].strip().lower() != "indicador":
-            st.error("❌ La primera columna debe llamarse 'INDICADOR'.")
-        else:
-            # Transponer DataFrame
+    # Intentar procesar
+    if df_raw.columns[0].strip().lower() != "indicador":
+        st.error("❌ La primera columna debe llamarse 'INDICADOR'.")
+    else:
+        try:
+            # Transponer y normalizar encabezados
             df_transposed = df_raw.set_index("INDICADOR").T
             df_transposed.index.name = "Periodo"
             df_transposed.columns = [col.strip().lower().replace(" ", "_") for col in df_transposed.columns]
@@ -27,12 +27,12 @@ if uploaded_file:
             with st.expander("🔁 Datos transpuestos"):
                 st.dataframe(df_transposed)
 
-            # Verificar que estén los campos clave
+            # Validar campos requeridos
             expected = ["utilidad_neta", "ventas_netas", "activos_totales", "capital_contable"]
             if not all(col in df_transposed.columns for col in expected):
                 st.error(f"❌ El archivo debe contener estas filas: {', '.join(expected)}")
             else:
-                # Limpiar y convertir datos a tipo numérico
+                # Convertir todo a float con limpieza
                 for col in expected:
                     df_transposed[col] = (
                         df_transposed[col]
@@ -43,12 +43,10 @@ if uploaded_file:
                         .astype(float)
                     )
 
-                # Calcular ratios financieros
+                # Cálculos financieros
                 ventas = df_transposed["ventas_netas"]
                 utilidad = df_transposed["utilidad_neta"]
                 activos = df_transposed["activos_totales"]
                 capital = df_transposed["capital_contable"]
 
-                margen_neto = utilidad / ventas
-                rotacion = ventas / activos
-                apalancamiento = activo
+                margen

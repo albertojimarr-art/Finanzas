@@ -1,83 +1,70 @@
+
 import streamlit as st
 import pandas as pd
 import numpy as np
 
 st.set_page_config(page_title="Modelo DuPont", layout="wide")
-st.title("📊 Análisis de Rentabilidad – Modelo DuPont")
 
-uploaded_file = st.file_uploader("📁 Cargar archivo Excel con la base de datos", type=["xlsx"])
+st.title("📊 Modelo DuPont – Análisis de Rentabilidad de Negocios")
 
-if uploaded_file:
-    df_raw = pd.read_excel(uploaded_file, sheet_name=0)
-    st.success("✅ Archivo cargado correctamente.")
+st.sidebar.header("Carga tu archivo")
+file = st.sidebar.file_uploader("Sube un archivo Excel o CSV", type=["csv", "xlsx"])
 
-    with st.expander("🔍 Ver datos cargados"):
-        st.dataframe(df_raw)
-
-    # Intentar procesar
-    if df_raw.columns[0].strip().lower() != "indicador":
-        st.error("❌ La primera columna debe llamarse 'INDICADOR'.")
+if file:
+    if file.name.endswith('.csv'):
+        df = pd.read_csv(file)
     else:
-        try:
-            df_transposed = df_raw.set_index("INDICADOR").T
-            df_transposed.index.name = "Periodo"
-            df_transposed.columns = [col.strip().lower().replace(" ", "_") for col in df_transposed.columns]
+        df = pd.read_excel(file)
 
-            with st.expander("🔁 Datos transpuestos"):
-                st.dataframe(df_transposed)
+    st.subheader("Vista previa de los datos")
+    st.dataframe(df)
 
-            expected = ["utilidad_neta", "ventas_netas", "activos_totales", "capital_contable"]
-            if not all(col in df_transposed.columns for col in expected):
-                st.error(f"❌ El archivo debe contener estas filas: {', '.join(expected)}")
-            else:
-                for col in expected:
-                    df_transposed[col] = (
-                        df_transposed[col]
-                        .astype(str)
-                        .str.replace(",", "")
-                        .str.strip()
-                        .replace("", np.nan)
-                        .astype(float)
-                    )
+    columnas_necesarias = [
+        'Periodo', 'Utilidad Neta', 'Ventas Netas',
+        'Activos Totales', 'Capital Contable'
+    ]
 
-                ventas = df_transposed["ventas_netas"]
-                utilidad = df_transposed["utilidad_neta"]
-                activos = df_transposed["activos_totales"]
-                capital = df_transposed["capital_contable"]
+    if all(col in df.columns for col in columnas_necesarias):
+        df_grouped = df.groupby('Periodo').sum().reset_index()
 
-                margen_neto = utilidad / ventas
-                rotacion = ventas / activos
-                apalancamiento = activos / capital
-                roe = margen_neto * rotacion
-                roa = rotacion * apalancamiento
-                payback_capital = 1 / roe
-                payback_activos = 1 / roa
+        df_grouped['Margen Neto (%)'] = (df_grouped['Utilidad Neta'] / df_grouped['Ventas Netas']) * 100
+        df_grouped['Rotación (veces)'] = df_grouped['Ventas Netas'] / df_grouped['Activos Totales']
+        df_grouped['Apalancamiento (veces)'] = df_grouped['Activos Totales'] / df_grouped['Capital Contable']
+        df_grouped['ROE (%)'] = df_grouped['Margen Neto (%)'] * df_grouped['Rotación (veces)']
+        df_grouped['ROA (%)'] = df_grouped['Rotación (veces)'] * df_grouped['Apalancamiento (veces)']
+        df_grouped['Pay Back Capital (veces)'] = 1 / (df_grouped['ROE (%)'] / 100)
+        df_grouped['Pay Back Activos (veces)'] = 1 / (df_grouped['ROA (%)'] / 100)
 
-                resultado = pd.DataFrame(
-                    index=[
-                        "Margen Neto", "Rotación", "Apalancamiento",
-                        "ROE (Retorno Capital)", "ROA (Retorno Activos)",
-                        "Pay Back Capital", "Pay Back Activos"
-                    ],
-                    columns=df_transposed.index.astype(str)
-                )
+        columnas_relativas = ['Margen Neto (%)', 'ROE (%)', 'ROA (%)']
+        columnas_absolutas = ['Rotación (veces)', 'Apalancamiento (veces)', 'Pay Back Capital (veces)', 'Pay Back Activos (veces)']
 
-                resultado.loc["Margen Neto"] = (margen_neto * 100).round(1).values
-                resultado.loc["Rotación"] = rotacion.round(1).values
-                resultado.loc["Apalancamiento"] = apalancamiento.round(1).values
-                resultado.loc["ROE (Retorno Capital)"] = (roe * 100).round(1).values
-                resultado.loc["ROA (Retorno Activos)"] = (roa * 100).round(1).values
-                resultado.loc["Pay Back Capital"] = payback_capital.round(1).values
-                resultado.loc["Pay Back Activos"] = payback_activos.round(1).values
+        df_grouped[columnas_relativas] = df_grouped[columnas_relativas].round(1)
+        df_grouped[columnas_absolutas] = df_grouped[columnas_absolutas].round(1)
 
-                if resultado.shape[1] >= 2:
-                    var = ((resultado.iloc[:, -1] - resultado.iloc[:, -2]) / resultado.iloc[:, -2] * 100).round(1)
-                    resultado["v%"] = var
-                else:
-                    resultado["v%"] = np.nan
+        df_resultado = df_grouped.set_index('Periodo')[
+            columnas_relativas + columnas_absolutas
+        ].T
 
-                st.subheader("📈 Resultados del Modelo DuPont")
-                st.dataframe(resultado, use_container_width=True)
+        st.subheader("📋 Reporte de Rentabilidad - Modelo DuPont")
+        st.dataframe(df_resultado)
 
-        except Exception as e:
-            st.error(f"⚠️ Error al procesar archivo: {e}")
+        def convertir_excel(df):
+            from io import BytesIO
+            output = BytesIO()
+            writer = pd.ExcelWriter(output, engine='xlsxwriter')
+            df.to_excel(writer, sheet_name='DuPont')
+            writer.close()
+            output.seek(0)
+            return output
+
+        st.download_button(
+            label="📥 Descargar reporte en Excel",
+            data=convertir_excel(df_resultado),
+            file_name="reporte_dupont.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
+    else:
+        st.error("⚠️ El archivo debe contener las siguientes columnas: " + ", ".join(columnas_necesarias))
+else:
+    st.info("📎 Sube un archivo Excel o CSV para comenzar el análisis.")

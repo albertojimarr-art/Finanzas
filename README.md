@@ -1,22 +1,42 @@
+
 # Modelo DuPont – Streamlit App
 
-Esta aplicación permite cargar un archivo Excel con indicadores financieros y calcula automáticamente el modelo DuPont.
+Esta aplicación permite realizar un análisis financiero usando el modelo DuPont para medir la rentabilidad de negocios. Desarrollado en Python con Streamlit.
 
-## Instrucciones
+## Características
 
-1. Clona este repositorio o descarga los archivos.
-2. Instala las dependencias:
-   ```bash
-   pip install -r requirements.txt
-   ```
-3. Ejecuta la app con:
-   ```bash
-   streamlit run app.py
-   ```
+- Carga de archivos CSV o Excel
+- Cálculo de indicadores DuPont:
+  - Margen Neto (%)
+  - Rotación (veces)
+  - Apalancamiento (veces)
+  - ROE (%)
+  - ROA (%)
+  - Pay Back Capital (veces)
+  - Pay Back Activos (veces)
+- Visualización en tabla: columnas = períodos, filas = indicadores
+- Exportación del reporte a Excel
 
-## Estructura esperada del archivo Excel
+## Requisitos
 
-- Primera columna: `INDICADOR`
-- Filas: `Ventas Netas`, `Utilidad Neta`, `Activos Totales`, `Capital Contable`
-- Columnas: Años o períodos financieros (2023, 2024, etc.)
+- Python 3.8 o superior
+- Instala dependencias con:
 
+```
+pip install -r requirements.txt
+```
+
+## Ejecución
+
+```
+streamlit run app.py
+```
+
+## Formato de Datos Esperado
+
+El archivo debe contener las siguientes columnas:
+- `Periodo`
+- `Utilidad Neta`
+- `Ventas Netas`
+- `Activos Totales`
+- `Capital Contable`
